@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode'; // Make sure to import jwt-decode properly
+import { jwtDecode } from 'jwt-decode';
 
 const WishlistPage = () => {
   const [wishlists, setWishlists] = useState([]);
   const [newWishlistName, setNewWishlistName] = useState('');
-  const [email, setEmail] = useState('');
   const [newProduct, setNewProduct] = useState({ name: '', image: '', createdBy: '' });
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [selectedWishlistId, setSelectedWishlistId] = useState(null);
+  const [inviteStatus, setInviteStatus] = useState('');
 
   useEffect(() => {
     // Get user ID from token when component mounts
@@ -50,7 +53,6 @@ const WishlistPage = () => {
   const fetchWishlists = async (id) => {
     setIsLoading(true);
     try {
-      // Updated endpoint to match the backend route
       const res = await axios.get(`http://localhost:5000/api/wishlist/user/${id}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -93,7 +95,7 @@ const WishlistPage = () => {
     try {
       const productToAdd = {
         ...newProduct,
-        createdBy: userId // Set the user ID here
+        createdBy: userId
       };
       
       const res = await axios.post(`http://localhost:5000/api/wishlist/${wishlistId}/product`, 
@@ -160,6 +162,53 @@ const WishlistPage = () => {
     }
   };
 
+  // Open invite form for a specific wishlist
+  const openInviteForm = (wishlistId) => {
+    setSelectedWishlistId(wishlistId);
+    setShowInviteForm(true);
+    setInviteEmail('');
+    setInviteStatus('');
+  };
+
+  // Close invite form
+  const closeInviteForm = () => {
+    setShowInviteForm(false);
+    setSelectedWishlistId(null);
+    setInviteEmail('');
+  };
+
+  // Send invite email
+  const sendInvite = async (e) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || !selectedWishlistId) return;
+
+    try {
+      // Find the wishlist name for the email content
+      const wishlist = wishlists.find(w => w._id === selectedWishlistId);
+      
+      await axios.post('http://localhost:5000/api/wishlist/invite', 
+        { 
+          email: inviteEmail, 
+          wishlistId: selectedWishlistId,
+          wishlistName: wishlist ? wishlist.name : 'Wishlist'
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      setInviteStatus('Invitation sent successfully!');
+      setTimeout(() => {
+        closeInviteForm();
+      }, 2000);
+    } catch (err) {
+      console.error('Error sending invitation:', err);
+      setInviteStatus('Failed to send invitation. Please try again.');
+    }
+  };
+
   if (error) {
     return <div className="error-message">{error}</div>;
   }
@@ -196,12 +245,20 @@ const WishlistPage = () => {
             <div key={wishlist._id} className="wishlist-card">
               <div className="wishlist-header">
                 <h2>{wishlist.name}</h2>
-                <button 
-                  onClick={() => handleDeleteWishlist(wishlist._id)}
-                  className="delete-button"
-                >
-                  Delete
-                </button>
+                <div className="wishlist-actions">
+                  <button 
+                    onClick={() => openInviteForm(wishlist._id)}
+                    className="invite-button"
+                  >
+                    Invite
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteWishlist(wishlist._id)}
+                    className="delete-button"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               
               {/* Products list */}
@@ -248,6 +305,29 @@ const WishlistPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteForm && (
+        <div className="invite-modal">
+          <div className="invite-modal-content">
+            <h3>Invite Someone to Your Wishlist</h3>
+            <form onSubmit={sendInvite}>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Enter email address"
+                required
+              />
+              <div className="invite-buttons">
+                <button type="submit">Send Invitation</button>
+                <button type="button" onClick={closeInviteForm}>Cancel</button>
+              </div>
+            </form>
+            {inviteStatus && <p className="invite-status">{inviteStatus}</p>}
+          </div>
         </div>
       )}
     </div>
