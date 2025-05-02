@@ -180,13 +180,30 @@ const WishlistPage = () => {
   // Send invite email
   const sendInvite = async (e) => {
     e.preventDefault();
-    if (!inviteEmail.trim() || !selectedWishlistId) return;
-
+    setInviteStatus('Sending invitation...');
+    
+    if (!inviteEmail.trim()) {
+      setInviteStatus('Please enter an email address');
+      return;
+    }
+    
+    if (!selectedWishlistId) {
+      setInviteStatus('Please select a wishlist');
+      return;
+    }
+    
     try {
+      console.log('Sending invite with data:', {
+        email: inviteEmail,
+        wishlistId: selectedWishlistId,
+        wishlistName: wishlists.find(w => w._id === selectedWishlistId)?.name || 'Wishlist'
+      });
+      
       // Find the wishlist name for the email content
       const wishlist = wishlists.find(w => w._id === selectedWishlistId);
       
-      await axios.post('http://localhost:5000/api/wishlist/invite', 
+      const response = await axios.post(
+        'http://localhost:5000/api/wishlist/invite', 
         { 
           email: inviteEmail, 
           wishlistId: selectedWishlistId,
@@ -194,21 +211,36 @@ const WishlistPage = () => {
         },
         {
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
       
+      console.log('Invite response:', response.data);
       setInviteStatus('Invitation sent successfully!');
       setTimeout(() => {
         closeInviteForm();
       }, 2000);
     } catch (err) {
       console.error('Error sending invitation:', err);
-      setInviteStatus('Failed to send invitation. Please try again.');
+      if (err.response) {
+        // Get more detailed error information
+        console.error('Response status:', err.response.status);
+        console.error('Response data:', err.response.data);
+        setInviteStatus(`Failed to send invitation: ${err.response.data.details || err.response.data.message || 'Unknown error'}`);
+      } else if (err.request) {
+        // The request was made but no response was received
+        console.error('No response received:', err.request);
+        setInviteStatus('Failed to send invitation. No response from server.');
+      } else {
+        // Something happened in setting up the request
+        console.error('Error setting up request:', err.message);
+        setInviteStatus(`Failed to send invitation: ${err.message}`);
+      }
     }
   };
-
+  
   if (error) {
     return <div className="error-message">{error}</div>;
   }
