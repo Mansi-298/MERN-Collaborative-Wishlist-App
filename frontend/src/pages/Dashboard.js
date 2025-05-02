@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import '../dashboard.css';
 
 const Dashboard = () => {
   const [email, setEmail] = useState('');
@@ -34,29 +35,39 @@ const Dashboard = () => {
   
 
   return (
-    <div>
-      <h1>Collaborative Wishlist App</h1>
-      <form onSubmit={handleAuth}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">{isSignUp ? 'Sign Up' : 'Login'}</button>
-      </form>
-      <button onClick={() => setIsSignUp(!isSignUp)}>
-        {isSignUp ? 'Already have an account? Login' : 'Don’t have an account? Sign Up'}
+    <div className="auth-container">
+  <div className="auth-card">
+    <h1 className="auth-title">Collaborative Wishlist App</h1>
+    <form onSubmit={handleAuth} className="auth-form">
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="auth-input"
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+        className="auth-input"
+      />
+      <button
+        type="submit"
+        className={`auth-button ${isSignUp ? 'signup' : 'login'}`}
+      >
+        {isSignUp ? 'Sign Up' : 'Login'}
       </button>
-    </div>
+    </form>
+    <button onClick={() => setIsSignUp(!isSignUp)} className="toggle-button">
+      {isSignUp ? 'Already have an account? Login' : 'Don’t have an account? Sign Up'}
+    </button>
+  </div>
+</div>
+
   );
 };
 

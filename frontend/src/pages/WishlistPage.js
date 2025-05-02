@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import '../wishlist.css';
 import { jwtDecode } from 'jwt-decode';
 
 const WishlistPage = () => {
@@ -240,7 +241,7 @@ const WishlistPage = () => {
       }
     }
   };
-  
+
   if (error) {
     return <div className="error-message">{error}</div>;
   }
@@ -363,6 +364,9 @@ const WishlistPage = () => {
         </div>
       )}
     </div>
+
+
+
   );
 };
 
