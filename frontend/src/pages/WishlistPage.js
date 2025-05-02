@@ -1,0 +1,257 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode'; // Make sure to import jwt-decode properly
+
+const WishlistPage = () => {
+  const [wishlists, setWishlists] = useState([]);
+  const [newWishlistName, setNewWishlistName] = useState('');
+  const [email, setEmail] = useState('');
+  const [newProduct, setNewProduct] = useState({ name: '', image: '', createdBy: '' });
+  const [userId, setUserId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Get user ID from token when component mounts
+    const getUserIdFromToken = () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('No authentication token found. Please log in again.');
+          setIsLoading(false);
+          return null;
+        }
+
+        const decodedToken = jwtDecode(token);
+        if (!decodedToken || !decodedToken.id) {
+          setError('Invalid authentication token. Please log in again.');
+          setIsLoading(false);
+          return null;
+        }
+
+        return decodedToken.id;
+      } catch (err) {
+        console.error('Error decoding token:', err);
+        setError('Authentication error. Please log in again.');
+        setIsLoading(false);
+        return null;
+      }
+    };
+
+    const userId = getUserIdFromToken();
+    setUserId(userId);
+    
+    if (userId) {
+      fetchWishlists(userId);
+    }
+  }, []);
+
+  // Fetch wishlists with the userId
+  const fetchWishlists = async (id) => {
+    setIsLoading(true);
+    try {
+      // Updated endpoint to match the backend route
+      const res = await axios.get(`http://localhost:5000/api/wishlist/user/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setWishlists(res.data);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching wishlists:', err);
+      setError('Failed to fetch wishlists. Please try again later.');
+      setIsLoading(false);
+    }
+  };
+
+  // Create a new wishlist
+  const handleCreateWishlist = async () => {
+    if (!newWishlistName.trim()) return;
+    
+    try {
+      const res = await axios.post('http://localhost:5000/api/wishlist', 
+        { name: newWishlistName, userId },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      setWishlists([...wishlists, res.data]);
+      setNewWishlistName('');
+    } catch (err) {
+      console.error('Error creating wishlist:', err);
+      setError('Failed to create wishlist. Please try again.');
+    }
+  };
+
+  // Add product to wishlist
+  const handleAddProduct = async (wishlistId) => {
+    if (!newProduct.name.trim()) return;
+    
+    try {
+      const productToAdd = {
+        ...newProduct,
+        createdBy: userId // Set the user ID here
+      };
+      
+      const res = await axios.post(`http://localhost:5000/api/wishlist/${wishlistId}/product`, 
+        productToAdd,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      // Update the wishlist in state
+      const updatedWishlists = wishlists.map(wishlist => 
+        wishlist._id === wishlistId ? res.data : wishlist
+      );
+      
+      setWishlists(updatedWishlists);
+      setNewProduct({ name: '', image: '', createdBy: '' });
+    } catch (err) {
+      console.error('Error adding product:', err);
+      setError('Failed to add product. Please try again.');
+    }
+  };
+
+  // Delete a wishlist
+  const handleDeleteWishlist = async (wishlistId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/wishlist/${wishlistId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      // Remove the deleted wishlist from state
+      const updatedWishlists = wishlists.filter(wishlist => wishlist._id !== wishlistId);
+      setWishlists(updatedWishlists);
+    } catch (err) {
+      console.error('Error deleting wishlist:', err);
+      setError('Failed to delete wishlist. Please try again.');
+    }
+  };
+
+  // Remove a product from a wishlist
+  const handleRemoveProduct = async (wishlistId, productId) => {
+    try {
+      const res = await axios.delete(
+        `http://localhost:5000/api/wishlist/${wishlistId}/product/${productId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      // Update the wishlist in state
+      const updatedWishlists = wishlists.map(wishlist => 
+        wishlist._id === wishlistId ? res.data : wishlist
+      );
+      
+      setWishlists(updatedWishlists);
+    } catch (err) {
+      console.error('Error removing product:', err);
+      setError('Failed to remove product. Please try again.');
+    }
+  };
+
+  if (error) {
+    return <div className="error-message">{error}</div>;
+  }
+
+  if (isLoading) {
+    return <div>Loading wishlists...</div>;
+  }
+
+  if (!userId) {
+    return <div>Please log in to view your wishlists.</div>;
+  }
+
+  return (
+    <div className="wishlist-container">
+      <h1>Your Wishlists</h1>
+      
+      {/* Create new wishlist form */}
+      <div className="create-wishlist">
+        <input
+          type="text"
+          value={newWishlistName}
+          onChange={(e) => setNewWishlistName(e.target.value)}
+          placeholder="New wishlist name"
+        />
+        <button onClick={handleCreateWishlist}>Create Wishlist</button>
+      </div>
+      
+      {/* Display wishlists */}
+      {wishlists.length === 0 ? (
+        <p>You don't have any wishlists yet.</p>
+      ) : (
+        <div className="wishlists-grid">
+          {wishlists.map(wishlist => (
+            <div key={wishlist._id} className="wishlist-card">
+              <div className="wishlist-header">
+                <h2>{wishlist.name}</h2>
+                <button 
+                  onClick={() => handleDeleteWishlist(wishlist._id)}
+                  className="delete-button"
+                >
+                  Delete
+                </button>
+              </div>
+              
+              {/* Products list */}
+              <div className="products-list">
+                {wishlist.products && wishlist.products.length > 0 ? (
+                  wishlist.products.map(product => (
+                    <div key={product._id} className="product-item">
+                      {product.image && (
+                        <img src={product.image} alt={product.name} />
+                      )}
+                      <div className="product-details">
+                        <p>{product.name}</p>
+                        <button 
+                          onClick={() => handleRemoveProduct(wishlist._id, product._id)}
+                          className="remove-button"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p>No products in this wishlist yet.</p>
+                )}
+              </div>
+              
+              {/* Add product form */}
+              <div className="add-product-form">
+                <input
+                  type="text"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                  placeholder="Product name"
+                />
+                <input
+                  type="text"
+                  value={newProduct.image}
+                  onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+                  placeholder="Image URL (optional)"
+                />
+                <button onClick={() => handleAddProduct(wishlist._id)}>
+                  Add Product
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default WishlistPage;
